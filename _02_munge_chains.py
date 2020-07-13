@@ -244,7 +244,7 @@ def mk_projection_tables(df, first_day, outdir, facility_code=None):
     filename = "forecast_"
     if facility_code:
         filename += facility_code + "_"
-    filename = filename + datetime.now().strftime("%Y-%m-%dT%H:%M")
+    filename = filename + datetime.now().strftime("%Y-%m-%dT%H:%M") + ".csv"
     summary_df.to_csv(path.join(f"{outdir}", filename), index=False)
 
 
