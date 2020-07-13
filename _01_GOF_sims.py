@@ -654,7 +654,7 @@ def main():
     fig.autofmt_xdate()
     fig.savefig(path.join(f"{figdir}", f"{prefix}reopening_scenarios.pdf"))
      
-    mk_projection_tables(df, first_day, outdir)
+    mk_projection_tables(df, first_day, outdir, prefix)
 
     toplot = df[
         [

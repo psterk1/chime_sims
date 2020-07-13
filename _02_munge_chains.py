@@ -10,6 +10,8 @@ import pandas as pd
 from _99_shared_functions import power_spline
 from utils import DirectoryType
 import warnings
+from datetime import datetime
+
 # plot of logistic curves
 def logistic(L, k, x0, x):
     return L / (1 + np.exp(-k * (x - x0)))
@@ -191,7 +193,7 @@ def plt_pairplot_posteriors(df, figdir, n=1000, prefix=""):
     grid.savefig(path.join(f"{figdir}", f"{prefix}posterior_pairplot.pdf"))
 
 
-def mk_projection_tables(df, first_day, outdir):
+def mk_projection_tables(df, first_day, outdir, facility_code=None):
     # predictive plot
     arrs = np.stack([df.arr.iloc[i] for i in range(df.shape[0])])
     arrq = np.quantile(arrs, axis=0, q=[0.05, 0.25, 0.5, 0.75, 0.95])
@@ -239,7 +241,11 @@ def mk_projection_tables(df, first_day, outdir):
         ],
         1,
     )
-    summary_df.to_csv(path.join(f"{outdir}", "forecast.csv"), index=False)
+    filename = "forecast_"
+    if facility_code:
+        filename += facility_code + "_"
+    filename = filename + datetime.now().strftime("%Y-%m-%dT%H:%M")
+    summary_df.to_csv(path.join(f"{outdir}", filename), index=False)
 
 
 def read_inputs(paramdir):
