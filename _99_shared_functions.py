@@ -244,7 +244,7 @@ def SIR_from_params(p_df):
     gamma = 1 / recovery_days
     total_infections = n_hosp / mkt_share / hosp_prop
 
-    n_days = 200
+    n_days = 300
 
     # Offset by the incubation period to start the sim
     # that many days before the first hospitalization

@@ -24,7 +24,7 @@ def plt_predictive(
     census_ts,
     figdir,
     as_of_days_ago,
-    howfar=200,
+    howfar=300,
     y_max=None,
     prefix="",
     hosp_capacity=None,

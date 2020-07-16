@@ -568,6 +568,7 @@ def main():
     elif penalty < 1:
         best_penalty = penalty
     # fit the actual chains
+    print("do_chains")
     df = do_chains(n_iters = n_iters, 
                    params = params, 
                    obs = census_ts, 
@@ -586,21 +587,24 @@ def main():
     df = df.loc[(df.iter > burn_in)]
     
     # do the SD plot
+    print("do SD plot")
     SD_plot(census_ts, params, df, figdir, prefix if prefix is not None else "")
     
     ## SEIR plot
+    print("do SEIR plot")
     SEIR_plot(df=df, 
               first_day = census_ts[census_ts.columns[0]].values[0], 
-              howfar = 200, 
+              howfar = 300,
               figdir = figdir, 
               prefix = prefix if prefix is not None else "",
               as_of_days_ago = as_of_days_ago,
               census_ts = census_ts)
 
     ## Rt plot
+    print("do Rt plot")
     Rt_plot(df=df, 
               first_day = census_ts[census_ts.columns[0]].values[0], 
-              howfar = 200, 
+              howfar = 300,
               figdir = figdir, 
               prefix = prefix if prefix is not None else "",
               params = params,
@@ -611,6 +615,7 @@ def main():
     if options.n_days:
         n_days = options.n_days
 
+    print("do plt predictive")
     first_day = census_ts[census_ts.columns[0]].values[0]
     for howfar in n_days:
         plt_predictive(
@@ -628,7 +633,7 @@ def main():
 
     # reopening
     colors = ['blue', 'green', 'orange', 'red', 'yellow', 'cyan']
-    reopen_day_gap = math.ceil((200-reopen_day)/len(colors))
+    reopen_day_gap = math.ceil((300-reopen_day)/len(colors))
     reopen_days = np.arange(reopen_day, 199, reopen_day_gap)
     qmats = []    
     for day in reopen_days:
@@ -638,7 +643,7 @@ def main():
         reop = np.stack(reop)
         reopq = np.quantile(reop, [.05, .25, .5, .75, .95], axis = 0)
         qmats.append(reopq)
-    dates = pd.date_range(f"{first_day}", periods=201, freq="d")
+    dates = pd.date_range(f"{first_day}", periods=301, freq="d")
     fig = plt.figure()
     for i in range(len(reopen_days)):
         plt.plot_date(dates, qmats[i][2, :], "-", 
@@ -653,7 +658,8 @@ def main():
     plt.title(f"Reopening scenario, {int(reopen_speed*100)}% per day up to {int(reopen_cap*100)}% social distancing")
     fig.autofmt_xdate()
     fig.savefig(path.join(f"{figdir}", f"{prefix}reopening_scenarios.pdf"))
-     
+
+    print("do projection tables")
     mk_projection_tables(df, first_day, outdir, prefix)
 
     toplot = df[
@@ -675,7 +681,7 @@ def main():
     ]
 
     pspace = np.linspace(0.001, 0.999, 1000)
-
+    print("do subplots")
     fig, ax = plt.subplots(figsize=(8, 40), ncols=1, nrows=len(toplot.columns))
     for i in range(len(toplot.columns)):
         cname = toplot.columns[i]
@@ -710,7 +716,7 @@ def main():
     plt.tight_layout()
     fig.savefig(path.join(f"{figdir}", 
                           f"{prefix if prefix is not None else ''}marginal_posteriors_v2.pdf"))
-
+    print("do plot pairs")
     if options.plot_pairs:
         #  Make a pair plot for diagnosing posterior dependence
         plt_pairplot_posteriors(toplot, figdir, prefix=prefix)
