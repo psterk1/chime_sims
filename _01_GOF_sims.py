@@ -369,6 +369,12 @@ def main():
     )
     p.add("-y", "--y_max", help="max y-scale for the census graph", type=int)
     p.add(
+        "-pa",
+        "--plot_all",
+        action="store_true",
+        help="Plot all cases except for posterior samples in a pair-plot grid",
+    )
+    p.add(
         "-pp",
         "--plot_pairs",
         action="store_true",
@@ -434,6 +440,7 @@ def main():
                            sig = options.forecast_change_prior_sd)
     save_chains = options.save_chains
     ignore_vent = options.ignore_vent
+    plot_all = options.plot_all
 
     if flexible_beta:
         print("doing flexible beta")
@@ -520,7 +527,7 @@ def main():
     census_ts["vent_rwstd"] = np.nan
     census_ts.loc[range(nobs), "vent_rwstd"] = rwstd
 
-    if sample_obs:
+    if sample_obs and plot_all:
         fig = plt.figure()
         plt.plot(census_ts.vent, color="red")
         plt.fill_between(
@@ -549,20 +556,20 @@ def main():
             ].tolist()  # get the penalty value
 
         mean_test_loss = [np.mean(np.array(chain_dict[i])) for i in pen_vec]
-
-        fig = plt.figure()
-        plt.plot(pen_vec, mean_test_loss)
-        plt.fill_between(
-            x=pen_vec,
-            y1=[float(np.quantile(chain_dict[i][1000:], [0.025])) for i in pen_vec],
-            y2=[float(np.quantile(chain_dict[i][1000:], [0.975])) for i in pen_vec],
-            alpha=0.3,
-            lw=2,
-            edgecolor="k",
-        )
-        plt.xlabel("penalty factor")
-        plt.ylabel("log10(test MSE)")
-        fig.savefig(path.join(f"{figdir}", f"shrinkage_grid_GOF.pdf"))
+        if plot_all:
+            fig = plt.figure()
+            plt.plot(pen_vec, mean_test_loss)
+            plt.fill_between(
+                x=pen_vec,
+                y1=[float(np.quantile(chain_dict[i][1000:], [0.025])) for i in pen_vec],
+                y2=[float(np.quantile(chain_dict[i][1000:], [0.975])) for i in pen_vec],
+                alpha=0.3,
+                lw=2,
+                edgecolor="k",
+            )
+            plt.xlabel("penalty factor")
+            plt.ylabel("log10(test MSE)")
+            fig.savefig(path.join(f"{figdir}", f"shrinkage_grid_GOF.pdf"))
         # identify the best penalty
         best_penalty = pen_vec[np.argmin(mean_test_loss)]
     elif penalty < 1:
@@ -587,49 +594,53 @@ def main():
     df = df.loc[(df.iter > burn_in)]
     
     # do the SD plot
-    print("do SD plot")
-    SD_plot(census_ts, params, df, figdir, prefix if prefix is not None else "")
+    if plot_all:
+        print("do SD plot")
+        SD_plot(census_ts, params, df, figdir, prefix if prefix is not None else "")
     
     ## SEIR plot
-    print("do SEIR plot")
-    SEIR_plot(df=df, 
-              first_day = census_ts[census_ts.columns[0]].values[0], 
-              howfar = 300,
-              figdir = figdir, 
-              prefix = prefix if prefix is not None else "",
-              as_of_days_ago = as_of_days_ago,
-              census_ts = census_ts)
+    if plot_all:
+        print("do SEIR plot")
+        SEIR_plot(df=df,
+                  first_day = census_ts[census_ts.columns[0]].values[0],
+                  howfar = 300,
+                  figdir = figdir,
+                  prefix = prefix if prefix is not None else "",
+                  as_of_days_ago = as_of_days_ago,
+                  census_ts = census_ts)
 
     ## Rt plot
-    print("do Rt plot")
-    Rt_plot(df=df, 
-              first_day = census_ts[census_ts.columns[0]].values[0], 
-              howfar = 300,
-              figdir = figdir, 
-              prefix = prefix if prefix is not None else "",
-              params = params,
-              census_ts = census_ts)
+    if plot_all:
+        print("do Rt plot")
+        Rt_plot(df=df,
+                  first_day = census_ts[census_ts.columns[0]].values[0],
+                  howfar = 300,
+                  figdir = figdir,
+                  prefix = prefix if prefix is not None else "",
+                  params = params,
+                  census_ts = census_ts)
 
     # make predictive plot
     n_days = [30, 90, 180]
     if options.n_days:
         n_days = options.n_days
 
-    print("do plt predictive")
     first_day = census_ts[census_ts.columns[0]].values[0]
-    for howfar in n_days:
-        plt_predictive(
-            df,
-            first_day,
-            census_ts,
-            figdir,
-            as_of_days_ago,
-            howfar=howfar,
-            prefix=prefix if prefix is not None else "",
-            y_max=y_max,
-            hosp_capacity=None,
-            vent_capacity=None,
-        )
+    if plot_all:
+        print("do plt predictive")
+        for howfar in n_days:
+            plt_predictive(
+                df,
+                first_day,
+                census_ts,
+                figdir,
+                as_of_days_ago,
+                howfar=howfar,
+                prefix=prefix if prefix is not None else "",
+                y_max=y_max,
+                hosp_capacity=None,
+                vent_capacity=None,
+            )
 
     # reopening
     colors = ['blue', 'green', 'orange', 'red', 'yellow', 'cyan']
@@ -644,80 +655,84 @@ def main():
         reopq = np.quantile(reop, [.05, .25, .5, .75, .95], axis = 0)
         qmats.append(reopq)
     dates = pd.date_range(f"{first_day}", periods=301, freq="d")
-    fig = plt.figure()
-    for i in range(len(reopen_days)):
-        plt.plot_date(dates, qmats[i][2, :], "-", 
-                      label=f"re-open after {reopen_days[i]} days",
-                      color = colors[i])
-        plt.fill_between(x = dates,
-                         y1 = qmats[i][1,:], y2 = qmats[i][3,:], 
-                         alpha = .2, color = colors[i])
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.title(f"Reopening scenario, {int(reopen_speed*100)}% per day up to {int(reopen_cap*100)}% social distancing")
-    fig.autofmt_xdate()
-    fig.savefig(path.join(f"{figdir}", f"{prefix}reopening_scenarios.pdf"))
+    if plot_all:
+        print("do reopen plot")
+        fig = plt.figure()
+        for i in range(len(reopen_days)):
+            plt.plot_date(dates, qmats[i][2, :], "-",
+                          label=f"re-open after {reopen_days[i]} days",
+                          color = colors[i])
+            plt.fill_between(x = dates,
+                             y1 = qmats[i][1,:], y2 = qmats[i][3,:],
+                             alpha = .2, color = colors[i])
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.title(f"Reopening scenario, {int(reopen_speed*100)}% per day up to {int(reopen_cap*100)}% social distancing")
+        fig.autofmt_xdate()
+        fig.savefig(path.join(f"{figdir}", f"{prefix}reopening_scenarios.pdf"))
 
     print("do projection tables")
     mk_projection_tables(df, first_day, outdir, prefix)
 
-    toplot = df[
-        [
-            "beta",
-            "hosp_prop",
-            "ICU_prop",
-            "vent_prop",
-            "hosp_LOS",
-            "ICU_LOS",
-            "vent_LOS",
-            "incubation_days",
-            "recovery_days",
-            "logistic_k",
-            "logistic_x0",
-            "logistic_L",
-            "nu",
+    if plot_all:
+        toplot = df[
+            [
+                "beta",
+                "hosp_prop",
+                "ICU_prop",
+                "vent_prop",
+                "hosp_LOS",
+                "ICU_LOS",
+                "vent_LOS",
+                "incubation_days",
+                "recovery_days",
+                "logistic_k",
+                "logistic_x0",
+                "logistic_L",
+                "nu",
+            ]
         ]
-    ]
 
-    pspace = np.linspace(0.001, 0.999, 1000)
-    print("do subplots")
-    fig, ax = plt.subplots(figsize=(8, 40), ncols=1, nrows=len(toplot.columns))
-    for i in range(len(toplot.columns)):
-        cname = toplot.columns[i]
-        if params.loc[params.param == cname, "distribution"].iloc[0] == "gamma":
-            x = sps.gamma.ppf(
-                pspace,
-                params.loc[params.param == cname, "p1"],
-                0,
-                params.loc[params.param == cname, "p2"],
-            )
-            y = sps.gamma.pdf(
-                x,
-                params.loc[params.param == cname, "p1"],
-                0,
-                params.loc[params.param == cname, "p2"],
-            )
-        elif params.loc[params.param == cname, "distribution"].iloc[0] == "beta":
-            x = sps.beta.ppf(
-                pspace,
-                params.loc[params.param == cname, "p1"],
-                params.loc[params.param == cname, "p2"],
-            )
-            y = sps.beta.pdf(
-                x,
-                params.loc[params.param == cname, "p1"],
-                params.loc[params.param == cname, "p2"],
-            )
-        ax[i].plot(x, y, label="prior")
-        ax[i].hist(toplot[cname], density=True, label="posterior", bins=30)
-        ax[i].set_xlabel(params.loc[params.param == cname, "description"].iloc[0])
-        ax[i].legend()
-    plt.tight_layout()
-    fig.savefig(path.join(f"{figdir}", 
-                          f"{prefix if prefix is not None else ''}marginal_posteriors_v2.pdf"))
-    print("do plot pairs")
+        pspace = np.linspace(0.001, 0.999, 1000)
+        print("do subplots")
+        fig, ax = plt.subplots(figsize=(8, 40), ncols=1, nrows=len(toplot.columns))
+        for i in range(len(toplot.columns)):
+            cname = toplot.columns[i]
+            if params.loc[params.param == cname, "distribution"].iloc[0] == "gamma":
+                x = sps.gamma.ppf(
+                    pspace,
+                    params.loc[params.param == cname, "p1"],
+                    0,
+                    params.loc[params.param == cname, "p2"],
+                )
+                y = sps.gamma.pdf(
+                    x,
+                    params.loc[params.param == cname, "p1"],
+                    0,
+                    params.loc[params.param == cname, "p2"],
+                )
+            elif params.loc[params.param == cname, "distribution"].iloc[0] == "beta":
+                x = sps.beta.ppf(
+                    pspace,
+                    params.loc[params.param == cname, "p1"],
+                    params.loc[params.param == cname, "p2"],
+                )
+                y = sps.beta.pdf(
+                    x,
+                    params.loc[params.param == cname, "p1"],
+                    params.loc[params.param == cname, "p2"],
+                )
+            ax[i].plot(x, y, label="prior")
+            ax[i].hist(toplot[cname], density=True, label="posterior", bins=30)
+            ax[i].set_xlabel(params.loc[params.param == cname, "description"].iloc[0])
+            ax[i].legend()
+        plt.tight_layout()
+        fig.savefig(path.join(f"{figdir}",
+                              f"{prefix if prefix is not None else ''}marginal_posteriors_v2.pdf"))
+
     if options.plot_pairs:
+        print("do plot pairs")
         #  Make a pair plot for diagnosing posterior dependence
         plt_pairplot_posteriors(toplot, figdir, prefix=prefix)
 
