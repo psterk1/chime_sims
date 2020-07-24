@@ -7,7 +7,7 @@ import json
 import multiprocessing as mp
 
 from configargparse import ArgParser
-from git import Repo
+# from git import Repo
 from scipy import stats as sps
 import matplotlib.pyplot as plt
 import numpy as np
@@ -65,13 +65,13 @@ def get_inputs(options):
     return census_ts, params
 
 
-def write_inputs(options, paramdir, census_ts, params):
-    with open(path.join(paramdir, "args.json"), "w") as f:
+def write_inputs(options, paramdir, census_ts, params, prefix=""):
+    with open(path.join(paramdir, prefix + "_args.json"), "w") as f:
         json.dump(options.__dict__, f)
-    census_ts.to_csv(path.join(paramdir, "census_ts.csv"), index=False)
-    params.to_csv(path.join(paramdir, "params.csv"), index=False)
-    with open(path.join(paramdir, "git.sha"), "w") as f:
-        f.write(Repo(search_parent_directories=True).head.object.hexsha)
+    census_ts.to_csv(path.join(paramdir, prefix + "_census_ts.csv"), index=False)
+    params.to_csv(path.join(paramdir, prefix + "_params.csv"), index=False)
+#    with open(path.join(paramdir, "git.sha"), "w") as f:
+#         f.write(Repo(search_parent_directories=True).head.object.hexsha)
 
 
 def loglik(r):
@@ -467,7 +467,7 @@ def main():
     paramdir = path.join(dir, "parameters")
     makedirs(paramdir)
 
-    write_inputs(options, paramdir, census_ts, params)
+    write_inputs(options, paramdir, census_ts, params, prefix)
 ## start here when debug
     nobs = census_ts.shape[0] - as_of_days_ago
 
